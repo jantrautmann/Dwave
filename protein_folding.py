@@ -71,8 +71,8 @@ if __name__ == '__main__':
     print('number variables : ', bqm.num_variables)
     print('number interaction : ', bqm.num_interactions)
 
-    shots = 1000
-    use_cloud = True
+    shots = 3000
+    use_cloud = False
     if use_cloud:
         sampleset = None
         with Client.from_config() as client:
@@ -103,6 +103,7 @@ if __name__ == '__main__':
 
 
     df = sampleset.to_pandas_dataframe(sample_column=True)
+    df.to_csv(f'dwave_PRLRFY_n{shots}.csv')
     is_found = False
     total_occ = 0
     for i in range(len(sampleset)):
