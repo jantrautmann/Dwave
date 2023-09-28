@@ -1,5 +1,10 @@
 import numpy as np
 import dimod
+from dwave.system import DWaveSampler, EmbeddingComposite, FixedEmbeddingComposite
+import minorminer
+from dwave.cloud import Client
+import time
+
 from qiskit_nature.problems.sampling.protein_folding.interactions.miyazawa_jernigan_interaction import MiyazawaJerniganInteraction
 from qiskit_nature.problems.sampling.protein_folding.peptide.peptide import Peptide
 from qiskit_nature.problems.sampling.protein_folding.protein_folding_problem import ProteinFoldingProblem
@@ -53,31 +58,64 @@ def get_polynom(hamiltonian):
 
 if __name__ == '__main__':
     # seq = "KLVFFA" # # 6 qubits
-    # seq = 'APRLRFY' # 9 qubits
-    seq = 'CYIQNCPLG' # 17 qubits
+    seq = 'APRLRFY' # 9 qubits
+    # seq = 'CYIQNCPLG' # 17 qubits
     hamiltonian = generate_hamiltonian(seq)
 
     gs = solve_classically(hamiltonian)
     n_qubits = len(gs)
     print('classical ground state : ', gs)
     poly = get_polynom(hamiltonian)
-    bqm = dimod.make_quadratic(poly, 50.0, dimod.BINARY)
+    bqm = dimod.make_quadratic(poly, 10.0, dimod.BINARY)
 
     print('number variables : ', bqm.num_variables)
     print('number interaction : ', bqm.num_interactions)
-    print(bqm.quadratic)
-    
-    # sample = dimod.ExactSolver().sample(bqm).lowest()
-    # # number of mapped qubits
-    # mapped_qubits = len(sample.variables)
-    # print('actual qubits required : ', mapped_qubits)
 
-    # df =sample.to_pandas_dataframe(sample_column=True)
-    # for i in range(len(sample)):
-    #     state_dict = df['sample'].values[i]
-    #     occupation = df['num_occurrences'].values[i]
-    #     state = [state_dict[x] for x in range(n_qubits)]
-    #     if state == gs:
-    #         print('found ground state : ', state)
-    #         print('with occupation : ', occupation)
+    shots = 1000
+    use_cloud = True
+    if use_cloud:
+        sampleset = None
+        with Client.from_config() as client:
+
+            # Load the default solver
+            solver = client.get_solver()
+            sampler= solver.sample_bqm(bqm, time_limit=10)
+
+            while not sampler.done():
+                time.sleep(5)
+
+            result = sampler.result()
+
+            sampleset = result['sampleset']
+
+    else:
+        dwave_sampler = DWaveSampler()
+        target_edgelist = dwave_sampler.edgelist
+
+        # And source edge list on the BQM quadratic model
+        source_edgelist = list(bqm.quadratic)
+
+        # Find the embeding
+        embedding = minorminer.find_embedding(source_edgelist, target_edgelist)
+        sampler = FixedEmbeddingComposite(dwave_sampler, embedding)
+
+        sampleset = sampler.sample(bqm, num_reads=shots)   
+
+
+    df = sampleset.to_pandas_dataframe(sample_column=True)
+    is_found = False
+    total_occ = 0
+    for i in range(len(sampleset)):
+        state_dict = df['sample'].values[i]
+        occupation = df['num_occurrences'].values[i]
+        state = [state_dict[x] for x in range(n_qubits)]
+        if state == gs:
+            print('found ground state : ', state)
+            print('with occupation : ', occupation)
+            is_found = True
+            total_occ += occupation
+
+    print('occupation : ', total_occ)
+    if is_found == False:
+        print('GS not found')
     
