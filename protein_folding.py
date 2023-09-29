@@ -58,8 +58,9 @@ def get_polynom(hamiltonian):
 
 if __name__ == '__main__':
     # seq = "KLVFFA" # # 6 qubits
-    seq = 'APRLRFY' # 9 qubits
-    # seq = 'CYIQNCPLG' # 17 qubits
+    # seq = 'APRLRFY' # 9 qubits
+    # seq = 'AVDINNNA' # 13 qubits
+    seq = 'CYIQNCPLG' # 17 qubits
     hamiltonian = generate_hamiltonian(seq)
 
     gs = solve_classically(hamiltonian)
@@ -103,7 +104,9 @@ if __name__ == '__main__':
 
 
     df = sampleset.to_pandas_dataframe(sample_column=True)
-    df.to_csv(f'dwave_PRLRFY_n{shots}.csv')
+    # df.to_csv(f'dwave_PRLRFY_n{shots}.csv')
+    # df.to_csv(f'dwave_AVDINNNA_n{shots}.csv')
+    df.to_csv(f'dwave_CYIQNCPLG_n{shots}.csv')
     is_found = False
     total_occ = 0
     for i in range(len(sampleset)):
